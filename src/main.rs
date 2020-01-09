@@ -2,7 +2,6 @@ extern crate gdk_pixbuf;
 extern crate gio;
 extern crate glib;
 extern crate gtk;
-extern crate rand;
 extern crate cgmath;
 
 mod camera_math;

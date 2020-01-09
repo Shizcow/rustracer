@@ -1,44 +1,19 @@
 [package]
-name = "raytracer"
+name = "rusttracer"
 version = "0.1.0"
 authors = ["Shizcow <pohl.devin@gmail.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-chrono = "0.4"
-futures = "0.3"
-atk = "^0"
 glib-sys = "^0"
-gobject-sys = "^0"
 glib = "^0"
 gio = "^0"
 gdk = "^0"
 gdk-pixbuf = "^0"
 gtk = "^0"
-once_cell = "^0"
-pango = "^0"
-pangocairo = "^0"
-cairo-rs = { version = "^0", features = ["png"] }
 gtk-sys = "^0"
 gdk-pixbuf-sys = "^0"
-rand = "^0"
 cgmath = "^0"
 
 [features]
-v2_32 = ["gdk-pixbuf-sys/v2_32", "gdk-pixbuf/v2_32"]
-v2_36 = ["v2_32", "gdk-pixbuf-sys/v2_36"]
-v2_36_8 = ["v2_36", "gdk-pixbuf-sys/v2_36_8"]
-v2_40 = ["v2_36_8", "gdk-pixbuf-sys/v2_40"]
-v3_16 = ["gtk-sys/v3_16", "gio/v2_44", "gdk/v3_16"]
-v3_18 = ["v3_16", "gtk-sys/v3_18"]
-v3_20 = ["v3_18", "gtk-sys/v3_20"]
-v3_22 = ["v3_20", "gtk-sys/v3_22", "gdk/v3_22"]
-v3_22_20 = ["v3_22", "gtk-sys/v3_22"]
-v3_22_26 = ["v3_22_20", "gtk-sys/v3_22_26"]
-v3_22_27 = ["v3_22_26", "gtk-sys/v3_22_27"]
-v3_22_29 = ["v3_22_27", "gtk-sys/v3_22_29"]
-v3_22_30 = ["v3_22_29", "gtk-sys/v3_22_30"]
-v3_24 = ["v3_22_30", "gtk-sys/v3_24"]
-v3_24_8 = ["v3_24", "gtk-sys/v3_24_8"]
+default = ["gdk-pixbuf-sys/v2_32", "gdk-pixbuf/v2_32"]
