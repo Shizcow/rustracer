@@ -1,0 +1,9 @@
+# rust files
+/target
+**/*.rs.bk
+Cargo.lock
+
+# editor files
+*~
+\#*\#
+.\#*
