@@ -11,7 +11,6 @@ mod commontypes;
 use crate::pixvec::*;
 use crate::camera_math::*;
 use crate::shapes::*;
-use crate::shapes::Scene;
 use crate::commontypes::*;
 use crate::cgmath::InnerSpace;
 
@@ -22,8 +21,8 @@ use gdk_pixbuf::Pixbuf;
 use cgmath::Vector3;
 use cgmath::Point3;
 
-static WIDTH_RENDER : usize = 640;
-static HEIGHT_RENDER : usize = 480;
+static WIDTH_RENDER : usize = 1920;
+static HEIGHT_RENDER : usize = 1440;
 static WIDTH_VIEWPORT : i32 = 1920;
 static HEIGHT_VIEWPORT : i32 = 1440;
 
@@ -57,19 +56,34 @@ fn build_ui(application: &gtk::Application) {
     let mut pvec = Pixvec::new(WIDTH_RENDER, HEIGHT_RENDER);
     let mut objects : Vec<SceneObject> = Vec::new();
     let mut lights  : Vec<SceneLight>  = Vec::new();
-    objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 5.0, y:  0.0, z: 0.0}, 0.3,  Color{red: 255.0, green: 255.0, blue: 255.0}, 0.9)));
-    objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 5.0, y: -0.5, z: 0.5}, 0.5,  Color{red: 0.0, green: 255.0, blue: 0.0}, 0.9)));
-    objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 4.5, y:  0.7, z: 0.7}, 0.7, Color{red: 0.0, green: 0.0, blue: 255.0}, 0.9)));
-    objects.push(SceneObject::Plane(Plane::new(Point3{x: 0.0, y: 0.0, z: -0.5}, Vector3{x: 0.0, y: 0.0, z: -1.0}, Color{red: 200.0, green: 200.0, blue: 200.0}, 1.0)));
-    lights.push(SceneLight::Sun(Sun::new(Vector3{x: 0.3, y: 0.2, z: -0.8},
+    objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 5.0, y:  0.0, z: 0.0}, 0.3, Material{texture: Some(Texture::Color(Color{red: 255.0, green: 255.0, blue: 255.0})), albedo: 0.9})));
+    objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 5.0, y: -0.5, z: 0.5}, 0.5, Material{texture: None, albedo: 0.9})));
+    objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 4.5, y:  0.7, z: 0.7}, 0.7, Material{texture: Some(Texture::Color(Color{red: 0.0,   green: 0.0,   blue: 255.0})), albedo: 0.9})));
+    objects.push(SceneObject::Plane(Plane::new(Point3{x: 0.0, y: 0.0, z: -0.5}, Vector3{x: 0.0, y: 0.0, z: -1.0}, Material{texture: None, albedo: 1.0})));
+    /*lights.push(SceneLight::Sun(Sun::new(Vector3{x: 0.3, y: 0.2, z: -0.8},
 				    Color{red: 255.0, green: 255.0, blue: 255.0},
 				    0.25)));
     lights.push(SceneLight::Sun(Sun::new(Vector3{x: 0.1, y: -0.2, z: -0.8},
 				    Color{red: 255.0, green: 255.0, blue: 255.0},
-				    0.15)));
-    lights.push(SceneLight::PointLight(PointLight::new(Point3{x: 4.6, y: -0.35, z: 0.0},
+    0.15)));*/
+    lights.push(SceneLight::PointLight(PointLight::new(Point3{x: 0.0, y: 0.0, z: 15.0},
+						       Color{red: 255.0, green: 250.0, blue: 250.0},
+						       30000.0)));
+    lights.push(SceneLight::PointLight(PointLight::new(Point3{x: 20.0, y: -4.0, z: 0.5},
+						       Color{red: 255.0, green: 250.0, blue: 250.0},
+						       45.0)));
+    lights.push(SceneLight::PointLight(PointLight::new(Point3{x: 30.0, y: -6.0, z: 0.5},
+						       Color{red: 255.0, green: 250.0, blue: 250.0},
+						       45.0)));
+    lights.push(SceneLight::PointLight(PointLight::new(Point3{x: 40.0, y: -8.0, z: 0.5},
+						       Color{red: 255.0, green: 250.0, blue: 250.0},
+						       45.0)));
+    lights.push(SceneLight::PointLight(PointLight::new(Point3{x: 4.0, y: 0.3, z: 0.15},
 						       Color{red: 255.0, green: 150.0, blue: 150.0},
-						       250.0)));
+						       5.0)));
+    lights.push(SceneLight::PointLight(PointLight::new(Point3{x: 4.4, y: -0.35, z: 0.15},
+						       Color{red: 255.0, green: 150.0, blue: 150.0},
+						       5.0)));
     let mut scene = Scene{camera: Camera{location: Point3{x: 0.0, y: 0.0, z: 0.5},
 				     rotation: Vector3{x: 0.0, y: -0.06, z: 0.0},
 				     focal_length: 1.0,
