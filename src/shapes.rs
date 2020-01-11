@@ -77,8 +77,31 @@ impl Sphere {
     pub fn get_texture_color(&self, location: &Point3<f64>) -> Color {
 	match &self.material.texture {
 	    Some(Texture::Color(color)) => *color,
-	    Some(Texture::ImageMap(_pixvec)) => {
-		Color{red: 0.0, green: 0.0, blue: 0.0}
+	    Some(Texture::ImageMap(ImageMap{pixvec, scale})) => {
+		let (mut x, mut y) = self.get_texture_coords(location);
+		x /= std::f64::consts::PI;
+		y /= std::f64::consts::PI;
+		if pixvec.width > pixvec.height {
+		    x %= scale;
+		    y %= scale*(pixvec.height as f64)/(pixvec.width as f64);
+		    if x < 0.0 {
+			x += scale;
+		    }
+		    if y < 0.0 {
+			y += scale*(pixvec.height as f64)/(pixvec.width as f64);
+		    }
+		    pixvec[(y*(pixvec.height as f64)/(scale*(pixvec.height as f64)/(pixvec.width as f64))) as usize][(x*(pixvec.width as f64)/scale) as usize]
+		} else {
+		    x %= scale*(pixvec.width as f64)/(pixvec.height as f64);
+		    y %= scale;
+		    if x < 0.0 {
+			x += scale*(pixvec.width as f64)/(pixvec.height as f64);
+		    }
+		    if y < 0.0 {
+			y += scale;
+		    }
+		    pixvec[(y*(pixvec.height as f64)/scale) as usize][(x*(pixvec.width as f64)/(scale*(pixvec.width as f64)/(pixvec.height as f64))) as usize]
+		}
 	    },
 	    None => {
 		let (mut phi, theta) = self.get_texture_coords(location);
@@ -169,7 +192,6 @@ impl Plane {
 			y += scale;
 		    }
 		    pixvec[(y*(pixvec.height as f64)/scale) as usize][(x*(pixvec.width as f64)/(scale*(pixvec.width as f64)/(pixvec.height as f64))) as usize]
-
 		}
 	    },
 	    None => {

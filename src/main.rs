@@ -54,9 +54,10 @@ fn build_ui(application: &gtk::Application) {
     window.set_position(gtk::WindowPosition::Center);
 
     let metal_texture = ImageMap::new_from_file("assets/metal.png".to_string(), 2.0);
+    let static_texture = ImageMap::new_from_file("assets/static.jpg".to_string(), 5.0);
     let mut objects : Vec<SceneObject> = Vec::new();
 
-    objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 5.0, y:  0.0, z: 0.0}, 0.3, Material{texture: Some(Texture::Color(Color{red: 255.0, green: 255.0, blue: 255.0})), albedo: 0.9})));
+    objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 5.0, y:  0.0, z: 0.0}, 0.3, Material{texture: Some(Texture::ImageMap(static_texture)), albedo: 0.9})));
     objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 5.0, y: -0.5, z: 0.5}, 0.5, Material{texture: None, albedo: 0.9})));
     objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 4.5, y:  0.7, z: 0.7}, 0.7, Material{texture: Some(Texture::Color(Color{red: 0.0,   green: 0.0,   blue: 255.0})), albedo: 0.9})));
     objects.push(SceneObject::Plane(Plane::new(Point3{x: 0.0, y: 0.0, z: -0.5}, Vector3{x: 0.0, y: 0.0, z: -1.0}, Material{texture: Some(Texture::ImageMap(metal_texture)), albedo: 1.0})));
