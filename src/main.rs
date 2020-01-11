@@ -21,10 +21,10 @@ use gdk_pixbuf::Pixbuf;
 use cgmath::Vector3;
 use cgmath::Point3;
 
-static WIDTH_RENDER : usize = 1920;
-static HEIGHT_RENDER : usize = 1440;
-static WIDTH_VIEWPORT : i32 = 1920;
-static HEIGHT_VIEWPORT : i32 = 1440;
+static WIDTH_RENDER    : usize = 1920;//640;
+static HEIGHT_RENDER   : usize = 1440;//480;
+static WIDTH_VIEWPORT  : i32   = 1920;
+static HEIGHT_VIEWPORT : i32   = 1440;
 
 fn render_scene(scene: &mut Scene, pvec: &mut Pixvec) {
     let focal_point = scene.camera.get_focal_point();
@@ -53,19 +53,22 @@ fn build_ui(application: &gtk::Application) {
     window.set_title("Raytracer");
     window.set_position(gtk::WindowPosition::Center);
 
-    let mut pvec = Pixvec::new(WIDTH_RENDER, HEIGHT_RENDER);
+    let metal_texture = ImageMap::new_from_file("assets/metal.png".to_string(), 2.0);
     let mut objects : Vec<SceneObject> = Vec::new();
-    let mut lights  : Vec<SceneLight>  = Vec::new();
+
     objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 5.0, y:  0.0, z: 0.0}, 0.3, Material{texture: Some(Texture::Color(Color{red: 255.0, green: 255.0, blue: 255.0})), albedo: 0.9})));
     objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 5.0, y: -0.5, z: 0.5}, 0.5, Material{texture: None, albedo: 0.9})));
     objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 4.5, y:  0.7, z: 0.7}, 0.7, Material{texture: Some(Texture::Color(Color{red: 0.0,   green: 0.0,   blue: 255.0})), albedo: 0.9})));
-    objects.push(SceneObject::Plane(Plane::new(Point3{x: 0.0, y: 0.0, z: -0.5}, Vector3{x: 0.0, y: 0.0, z: -1.0}, Material{texture: None, albedo: 1.0})));
-    /*lights.push(SceneLight::Sun(Sun::new(Vector3{x: 0.3, y: 0.2, z: -0.8},
+    objects.push(SceneObject::Plane(Plane::new(Point3{x: 0.0, y: 0.0, z: -0.5}, Vector3{x: 0.0, y: 0.0, z: -1.0}, Material{texture: Some(Texture::ImageMap(metal_texture)), albedo: 1.0})));
+    
+    let mut lights  : Vec<SceneLight>  = Vec::new();
+    lights.push(SceneLight::Sun(Sun::new(Vector3{x: 0.3, y: 0.2, z: -0.8},
 				    Color{red: 255.0, green: 255.0, blue: 255.0},
 				    0.25)));
     lights.push(SceneLight::Sun(Sun::new(Vector3{x: 0.1, y: -0.2, z: -0.8},
 				    Color{red: 255.0, green: 255.0, blue: 255.0},
-    0.15)));*/
+					 0.15)));
+    /*
     lights.push(SceneLight::PointLight(PointLight::new(Point3{x: 0.0, y: 0.0, z: 15.0},
 						       Color{red: 255.0, green: 250.0, blue: 250.0},
 						       30000.0)));
@@ -83,16 +86,18 @@ fn build_ui(application: &gtk::Application) {
 						       5.0)));
     lights.push(SceneLight::PointLight(PointLight::new(Point3{x: 4.4, y: -0.35, z: 0.15},
 						       Color{red: 255.0, green: 150.0, blue: 150.0},
-						       5.0)));
+						       5.0)));*/
     let mut scene = Scene{camera: Camera{location: Point3{x: 0.0, y: 0.0, z: 0.5},
-				     rotation: Vector3{x: 0.0, y: -0.06, z: 0.0},
-				     focal_length: 1.0,
-				     resolution: Resolution{x: WIDTH_RENDER, y: HEIGHT_RENDER},
-				     hx: 0.5,
-				     hy: 0.375},
-		      objects: objects,
-		      lights: lights,
-		      white_balance: 0.0};
+					 rotation: Vector3{x: 0.0, y: -0.06, z: 0.0},
+					 focal_length: 1.0,
+					 resolution: Resolution{x: WIDTH_RENDER, y: HEIGHT_RENDER},
+					 hx: 0.5,
+					 hy: 0.375},
+			  objects: objects,
+			  lights: lights,
+			  white_balance: 0.0};
+    
+    let mut pvec = Pixvec::new(WIDTH_RENDER, HEIGHT_RENDER);
     render_scene(&mut scene, &mut pvec);
     let mut pbuf = Pixbuf::from(&mut pvec).scale_simple(WIDTH_VIEWPORT, HEIGHT_VIEWPORT, gdk_pixbuf::InterpType::Nearest).unwrap();
     let image = gtk::Image::new_from_pixbuf(Some(&mut pbuf));

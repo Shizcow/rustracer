@@ -1,13 +1,26 @@
 use crate::commontypes::*;
+use crate::pixvec::*;
 use crate::camera_math::Camera;
 use crate::cgmath::InnerSpace;
 use crate::cgmath::MetricSpace;
 use cgmath::Point3;
 use cgmath::Vector3;
 
+pub struct ImageMap {
+    pub pixvec: Pixvec,
+    pub scale: f64
+}
+
+impl ImageMap {
+    pub fn new_from_file(uri: String, scale: f64) -> Self {
+	ImageMap{pixvec: Pixvec::from(&gdk_pixbuf::Pixbuf::new_from_file(uri).unwrap()), scale: scale}
+    }
+}
+
 #[allow(dead_code)]
 pub enum Texture {
-    Color(Color)
+    Color(Color),
+    ImageMap(ImageMap)
 }
 
 #[allow(dead_code)]
@@ -64,6 +77,9 @@ impl Sphere {
     pub fn get_texture_color(&self, location: &Point3<f64>) -> Color {
 	match &self.material.texture {
 	    Some(Texture::Color(color)) => *color,
+	    Some(Texture::ImageMap(_pixvec)) => {
+		Color{red: 0.0, green: 0.0, blue: 0.0}
+	    },
 	    None => {
 		let (mut phi, theta) = self.get_texture_coords(location);
 		phi += std::f64::consts::PI;
@@ -131,6 +147,31 @@ impl Plane {
     pub fn get_texture_color(&self, location: &Point3<f64>) -> Color {
 	match &self.material.texture {
 	    Some(Texture::Color(color)) => *color,
+	    Some(Texture::ImageMap(ImageMap{pixvec, scale})) => {
+		let (mut x, mut y) = self.get_texture_coords(location);
+		if pixvec.width > pixvec.height {
+		    x %= scale;
+		    y %= scale*(pixvec.height as f64)/(pixvec.width as f64);
+		    if x < 0.0 {
+			x += scale;
+		    }
+		    if y < 0.0 {
+			y += scale*(pixvec.height as f64)/(pixvec.width as f64);
+		    }
+		    pixvec[(y*(pixvec.height as f64)/(scale*(pixvec.height as f64)/(pixvec.width as f64))) as usize][(x*(pixvec.width as f64)/scale) as usize]
+		} else {
+		    x %= scale*(pixvec.width as f64)/(pixvec.height as f64);
+		    y %= scale;
+		    if x < 0.0 {
+			x += scale*(pixvec.width as f64)/(pixvec.height as f64);
+		    }
+		    if y < 0.0 {
+			y += scale;
+		    }
+		    pixvec[(y*(pixvec.height as f64)/scale) as usize][(x*(pixvec.width as f64)/(scale*(pixvec.width as f64)/(pixvec.height as f64))) as usize]
+
+		}
+	    },
 	    None => {
 		let (mut x, mut y) = self.get_texture_coords(location);
 		if x < 0.0 {

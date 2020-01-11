@@ -55,15 +55,17 @@ impl Pixvec {
 impl From<&gdk_pixbuf::Pixbuf> for Pixvec {
     fn from(pbuf: &gdk_pixbuf::Pixbuf) -> Self {
 	if pbuf.get_has_alpha() {
-	    panic!("non-RGB pixelbuffer");
+	    panic!("Non-RGB pixelbuffer! Has Alpha!");
 	}
 	let bytes = pbuf.read_pixel_bytes().unwrap();
 	let height = pbuf.get_height() as usize;
+	let rowstride = pbuf.get_rowstride() as usize;
 	let mut data : Vec<Vec<Color>> = Vec::with_capacity(height);
-	let rowlen = pbuf.get_width() as usize;
+	let width = pbuf.get_width() as usize;
+	let padding = rowstride%width;
 	for i in 0..height {
-	    let mut row : Vec<Color> = Vec::with_capacity(rowlen);
-	    for j in (i*rowlen..i*rowlen-1).step_by(3) {
+	    let mut row : Vec<Color> = Vec::with_capacity(width);
+	    for j in (3*i*width+i*padding..3*(i+1)*width+(i+1)*padding-padding).step_by(3) {
 		row.push(Color{red: *bytes.get(j).unwrap() as f64, blue: *bytes.get(j+1).unwrap() as f64, green: *bytes.get(j+2).unwrap() as f64});
 	    }
 	    data.push(row);
@@ -72,15 +74,15 @@ impl From<&gdk_pixbuf::Pixbuf> for Pixvec {
 		    pbuf.get_colorspace(),
 		    pbuf.get_has_alpha(),
 		    pbuf.get_bits_per_sample(), 
-		    pbuf.get_width() as usize,
-		    pbuf.get_height() as usize,
-		    pbuf.get_rowstride() as usize)
+		    width,
+		    height,
+		    rowstride-padding)
     }
 }
 
 impl From<&mut Pixvec> for gdk_pixbuf::Pixbuf {
     fn from(pvec: &mut Pixvec) -> Self {
-	let mut bytes : Vec<u8> = Vec::with_capacity(pvec.height*3);
+	let mut bytes : Vec<u8> = Vec::with_capacity(pvec.height*pvec.width*3);
 	for row in pvec.iter_mut() {
 	    for rgb in row.iter_mut() {
 		rgb.clamp();
