@@ -5,12 +5,16 @@ use crate::cgmath::InnerSpace;
 use crate::cgmath::MetricSpace;
 use cgmath::Point3;
 use cgmath::Vector3;
+use cgmath::Vector2;
 
+
+#[allow(dead_code)]
 pub struct ImageMap {
     pub pixvec: Pixvec,
     pub scale: f64
 }
 
+#[allow(dead_code)]
 impl ImageMap {
     pub fn new_from_file(uri: String, scale: f64) -> Self {
 	ImageMap{pixvec: Pixvec::from(&gdk_pixbuf::Pixbuf::new_from_file(uri).unwrap()), scale: scale}
@@ -26,8 +30,53 @@ pub enum Texture {
 #[allow(dead_code)]
 pub struct Material {
     pub texture: Option<Texture>,
-    pub albedo: f64
+    pub albedo: f64,
+    pub diffusibility: f64,
+    pub reflectivity: f64
 }
+
+impl Material {
+    pub fn shade_diffuse(scene: &Scene, location: Point3<f64>, surface_normal: Vector3<f64>, obj: &SceneObject) -> Color {
+	let mut mix = Vector3::<f64>::new(0.0, 0.0, 0.0);
+	for light in scene.lights.iter() {
+	    let dir_to_light = light.get_direction(location);
+	    let dist_to_light = light.dist_to(location);
+	    let shadow_ray = Ray{origin: location, direction: dir_to_light};
+
+	    if !shadow_ray.any_intersect(scene, dist_to_light) {
+		let dp = surface_normal.dot(dir_to_light);
+		let power =  light.get_apparent_intensity(dp, dist_to_light)
+		    * obj.get_albedo();
+
+		let color = (obj.get_texture_color(&location))
+		    * (*light.get_color()) * power;
+		
+		mix[0] += color.red   as f64;
+		mix[1] += color.green as f64;
+		mix[2] += color.blue  as f64;
+	    }
+	}
+	mix = mix/(scene.lights.len() as f64); // take average
+	Color{red: mix[0], green: mix[1], blue: mix[2]}*obj.get_diffusibility()
+    }
+    pub fn shade_reflect(scene: &Scene, location: Point3<f64>, reflection_vector: Vector3<f64>, obj: &SceneObject, n_th: i32) -> Color {
+	let reflection_ray = Ray{origin: location, direction: reflection_vector};
+	if let Some((color, _power)) = reflection_ray.bounce(scene, n_th+1) {
+	    color*obj.get_reflectivity()
+	} else {
+	    Color{red: 0.0, green: 0.0, blue: 0.0}
+	}
+    }
+}
+
+#[allow(dead_code)]
+impl Material {
+    pub fn new(texture: Option<Texture>, albedo: f64, diffusibility: f64, reflectivity: f64) -> Self{
+	let d_r = Vector2{x: diffusibility, y: reflectivity}.normalize();
+	Material{texture: texture, albedo: albedo, diffusibility: d_r[0], reflectivity: d_r[1]}
+    }
+}
+
 
 #[allow(dead_code)]
 pub struct Sphere {
@@ -296,6 +345,18 @@ pub enum SceneObject {
 
 #[allow(dead_code)]
 impl SceneObject {
+    pub fn get_diffusibility(&self) -> f64 {
+	match *self {
+            SceneObject::Sphere(ref s) => s.material.diffusibility,
+            SceneObject::Plane(ref p) => p.material.diffusibility,
+        }
+    }
+    pub fn get_reflectivity(&self) -> f64 {
+	match *self {
+            SceneObject::Sphere(ref s) => s.material.reflectivity,
+            SceneObject::Plane(ref p) => p.material.reflectivity,
+        }
+    }
     pub fn get_albedo(&self) -> f64 {
 	match *self {
             SceneObject::Sphere(ref s) => s.material.albedo,
@@ -348,34 +409,18 @@ impl Ray {
 	    }
 	}
 	intersection
-    } //                                                            v-- power @ pixel
-    pub fn prime_bounce(&self, scene: &Scene) -> Option<(Color, f64)> { // from direction of next
-	let mut white_balance = 0.0;
+    } //                                                        v-- power @ pixel
+    pub fn bounce(&self, scene: &Scene, n_th: i32) -> Option<(Color, f64)> { // from direction of next
 	let ret = 
-	    if let Some((_dist, location, _reflection_vector, surface_normal, obj)) = self.closest_intersect(scene) {
-		let mut mix = Vector3::<f64>::new(0.0, 0.0, 0.0);
-		for light in scene.lights.iter() {
-		    let new_origin = location+surface_normal*1e-13;
-		    let dir_to_light = light.get_direction(new_origin);
-		    let dist_to_light = light.dist_to(new_origin);
-		    let shadow_ray = Ray{origin: new_origin, direction: dir_to_light};
-
-		    if !shadow_ray.any_intersect(scene, dist_to_light) {
-			let dp = surface_normal.dot(dir_to_light);
-			let power =  light.get_apparent_intensity(dp, dist_to_light)
-			    * obj.get_albedo();
-			white_balance += power;
-
-			let color = (obj.get_texture_color(&location))
-			    * (*light.get_color()) * power;
-			
-			mix[0] += color.red   as f64;
-			mix[1] += color.green as f64;
-			mix[2] += color.blue  as f64;
-		    }
+	    if let Some((_dist, location, reflection_vector, surface_normal, obj)) = self.closest_intersect(scene) {
+		let new_origin = location+surface_normal*1e-13;
+		let color_diffuse = Material::shade_diffuse(scene, new_origin, surface_normal, obj);
+		if n_th < 10 {
+		    let color_reflect = Material::shade_reflect(scene, new_origin, reflection_vector, obj, n_th);
+		    Some((color_diffuse+color_reflect, 0.0))
+		} else {
+		    Some((color_diffuse, 0.0))
 		}
-		mix = mix/(scene.lights.len() as f64); // take average
-		Some((Color{red: mix[0], green: mix[1], blue: mix[2]}, white_balance/(scene.lights.len() as f64)))
 	    } else {
 		None
 	    };

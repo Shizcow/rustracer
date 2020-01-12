@@ -1,4 +1,4 @@
-use std::ops::{Mul, Add};
+use std::ops::{Mul, Add, Div};
 
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
@@ -34,6 +34,13 @@ impl Add<Color> for Color {
 	Color{red:   self.red+other.red,
 	      green: self.green+other.green,
 	      blue:  self.blue+other.blue}
+    }
+}
+
+impl Div<f64> for Color {
+    type Output = Color;
+    fn div(self, other: f64) -> Color {
+	self * ( 1.0 / other )
     }
 }
 
