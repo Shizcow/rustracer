@@ -34,7 +34,7 @@ fn render_scene(scene: &mut Scene, pvec: &mut Pixvec) {
 	for j in 0..pvec.width {
 	    let p = scene.camera.pixel_to_world(j, i);
 	    let ray = Ray{origin: p, direction: (p-focal_point).normalize()};
-	    if let Some((color, white_balance)) = ray.bounce(scene, 0) {
+	    if let Some((color, white_balance)) = ray.trace(scene, 0) {
 		pvec[i][j] = color;
 		if white_balance > scene.white_balance {
 		    scene.white_balance = white_balance;
@@ -136,7 +136,7 @@ fn build_ui(application: &gtk::Application) {
     
     let mut pvec = Pixvec::new(WIDTH_RENDER, HEIGHT_RENDER);
     render_scene(&mut scene, &mut pvec);
-    let mut pbuf = Pixbuf::from(&mut pvec).scale_simple(WIDTH_VIEWPORT, HEIGHT_VIEWPORT, gdk_pixbuf::InterpType::Nearest).unwrap();
+    let mut pbuf = Pixbuf::from(&mut pvec).scale_simple(WIDTH_VIEWPORT, HEIGHT_VIEWPORT, gdk_pixbuf::InterpType::Bilinear).unwrap();
     let image = gtk::Image::new_from_pixbuf(Some(&mut pbuf));
     let event_box = gtk::EventBox::new();
 
@@ -149,7 +149,7 @@ fn build_ui(application: &gtk::Application) {
 
 fn main() {
     let application = gtk::Application::new(
-        Some("com.github.gtk-rs.examples.treeview"),
+        Some("com.shizcow.rustracer"),
         Default::default(),
     )
 	.expect("Initialization failed...");
