@@ -5,38 +5,32 @@ use crate::cgmath::InnerSpace;
 use crate::cgmath::MetricSpace;
 use cgmath::Point3;
 use cgmath::Vector3;
-use cgmath::Vector2;
 
 
-#[allow(dead_code)]
 pub struct ImageMap {
     pub pixvec: Pixvec,
     pub scale: f64
 }
 
-#[allow(dead_code)]
+
 impl ImageMap {
     pub fn new_from_file(uri: String, scale: f64) -> Self {
 	ImageMap{pixvec: Pixvec::from(&gdk_pixbuf::Pixbuf::new_from_file(uri).unwrap()), scale: scale}
     }
 }
 
-#[allow(dead_code)]
+
 pub enum Texture {
     Color(Color),
     ImageMap(ImageMap)
 }
 
-#[allow(dead_code)]
-pub struct Material {
-    pub texture: Option<Texture>,
-    pub albedo: f64,
-    pub diffusibility: f64,
-    pub reflectivity: f64
+pub struct ShadeDiffuse {
+    strength: f64
 }
 
-impl Material {
-    pub fn shade_diffuse(scene: &Scene, location: Point3<f64>, surface_normal: Vector3<f64>, obj: &SceneObject) -> Color {
+impl ShadeDiffuse{
+    pub fn shade_diffuse(&self, scene: &Scene, location: Point3<f64>, surface_normal: Vector3<f64>, obj: &SceneObject) -> Color {
 	let mut mix = Vector3::<f64>::new(0.0, 0.0, 0.0);
 	for light in scene.lights.iter() {
 	    let dir_to_light = light.get_direction(location);
@@ -57,35 +51,90 @@ impl Material {
 	    }
 	}
 	mix = mix/(scene.lights.len() as f64); // take average
-	Color{red: mix[0], green: mix[1], blue: mix[2]}*obj.get_diffusibility()
+	Color{red: mix[0], green: mix[1], blue: mix[2]}*self.strength
     }
-    pub fn shade_reflect(scene: &Scene, location: Point3<f64>, reflection_vector: Vector3<f64>, obj: &SceneObject, n_th: i32) -> Color {
-	let reflection_ray = Ray{origin: location, direction: reflection_vector};
-	if let Some((color, _power)) = reflection_ray.bounce(scene, n_th+1) {
-	    color*obj.get_reflectivity()
+    pub fn new(strength: f64) -> Self {
+	ShadeDiffuse{strength: strength}
+    }
+}
+
+pub struct ShadeReflect {
+    strength: f64
+}
+
+impl ShadeReflect {
+    pub fn shade_reflect(&self, scene: &Scene, location: Point3<f64>, reflection_vector: Vector3<f64>, _obj: &SceneObject, n_th: i32) -> Color {
+	if n_th < 10 {
+	    let reflection_ray = Ray{origin: location, direction: reflection_vector};
+	    if let Some((color, _power)) = reflection_ray.bounce(scene, n_th+1) {
+		color*self.strength
+	    } else {
+		Color{red: 0.0, green: 0.0, blue: 0.0}
+	    }
 	} else {
 	    Color{red: 0.0, green: 0.0, blue: 0.0}
 	}
     }
+    pub fn new(strength: f64) -> Self {
+	ShadeReflect{strength: strength}
+    }
 }
 
-#[allow(dead_code)]
-impl Material {
-    pub fn new(texture: Option<Texture>, albedo: f64, diffusibility: f64, reflectivity: f64) -> Self{
-	let d_r = Vector2{x: diffusibility, y: reflectivity}.normalize();
-	Material{texture: texture, albedo: albedo, diffusibility: d_r[0], reflectivity: d_r[1]}
+pub enum Node {
+    Diffuse(ShadeDiffuse),
+    Reflect(ShadeReflect)
+}
+
+impl Node {
+    pub fn resolve(&self, scene: &Scene, location: Point3<f64>, surface_normal: Vector3<f64>, reflection_vector: Vector3<f64>, obj: &SceneObject, n_th: i32) -> Color {
+	match *self {
+            Node::Diffuse(ref n) => n.shade_diffuse(scene, location, surface_normal, obj),
+            Node::Reflect(ref n) => n.shade_reflect(scene, location, reflection_vector, obj, n_th),
+        }
+    }
+    pub fn get_strength(&self) -> f64 {
+	match *self {
+            Node::Diffuse(ref n) => n.strength,
+            Node::Reflect(ref n) => n.strength
+        }
+    }
+    pub fn set_strength(&mut self, new_strength: f64){
+	match *self {
+            Node::Diffuse(ref mut n) => n.strength = new_strength,
+            Node::Reflect(ref mut n) => n.strength = new_strength
+        }
     }
 }
 
 
-#[allow(dead_code)]
+pub struct Material {
+    pub texture: Option<Texture>,
+    pub albedo: f64,
+    pub nodes: Vec<Node>
+}
+
+
+impl Material {
+    pub fn new(texture: Option<Texture>, albedo: f64, mut nodelist: Vec<Node>) -> Self {
+	let mut magnitude: f64 = 0.0; // normalize nodes
+	for node in nodelist.iter() {
+	    magnitude += node.get_strength().powi(2);
+	}
+	magnitude = magnitude.sqrt();
+	for node in nodelist.iter_mut() {
+	    node.set_strength(node.get_strength()/magnitude);
+	}
+	Material{texture: texture, albedo: albedo, nodes: nodelist}
+    }
+}
+
 pub struct Sphere {
     origin: Point3<f64>,
     radius: f64,
     pub material: Material
 }
 
-#[allow(dead_code)]
+
 impl Sphere {
     pub fn new(
 	origin: Point3<f64>,
@@ -165,7 +214,7 @@ impl Sphere {
     }
 }
 
-#[allow(dead_code)]
+
 pub struct Plane {
     pub origin: Point3<f64>,
     pub normal: Vector3<f64>,
@@ -173,7 +222,7 @@ pub struct Plane {
 }
 
 
-#[allow(dead_code)]
+
 impl Plane {
     pub fn new(origin: Point3<f64>,
 	       normal: Vector3<f64>,
@@ -261,14 +310,14 @@ impl Plane {
     }
 }
 
-#[allow(dead_code)]
+
 pub struct Sun {
     pub direction: Vector3<f64>,
     pub color: Color,
     pub intensity: f64
 }
 
-#[allow(dead_code)]
+
 impl Sun {
     pub fn new(direction: Vector3<f64>,
 	       color: Color,
@@ -277,14 +326,14 @@ impl Sun {
     }
 }
 
-#[allow(dead_code)]
+
 pub struct PointLight {
     pub origin: Point3<f64>,
     pub color: Color,
     pub intensity: f64
 }
 
-#[allow(dead_code)]
+
 impl PointLight {
     pub fn new(position: Point3<f64>,
 	       color: Color,
@@ -294,7 +343,7 @@ impl PointLight {
 }
 
 
-#[allow(dead_code)]
+
 pub enum SceneLight {
     Sun(Sun),
     PointLight(PointLight)
@@ -337,24 +386,18 @@ impl SceneLight {
     }
 }
 
-#[allow(dead_code)]
+
 pub enum SceneObject {
     Sphere(Sphere),
     Plane(Plane)
 }
 
-#[allow(dead_code)]
+
 impl SceneObject {
-    pub fn get_diffusibility(&self) -> f64 {
+    pub fn get_nodes(&self) -> &Vec<Node> {
 	match *self {
-            SceneObject::Sphere(ref s) => s.material.diffusibility,
-            SceneObject::Plane(ref p) => p.material.diffusibility,
-        }
-    }
-    pub fn get_reflectivity(&self) -> f64 {
-	match *self {
-            SceneObject::Sphere(ref s) => s.material.reflectivity,
-            SceneObject::Plane(ref p) => p.material.reflectivity,
+            SceneObject::Sphere(ref s) => &s.material.nodes,
+            SceneObject::Plane(ref p) => &p.material.nodes,
         }
     }
     pub fn get_albedo(&self) -> f64 {
@@ -414,13 +457,11 @@ impl Ray {
 	let ret = 
 	    if let Some((_dist, location, reflection_vector, surface_normal, obj)) = self.closest_intersect(scene) {
 		let new_origin = location+surface_normal*1e-13;
-		let color_diffuse = Material::shade_diffuse(scene, new_origin, surface_normal, obj);
-		if n_th < 10 {
-		    let color_reflect = Material::shade_reflect(scene, new_origin, reflection_vector, obj, n_th);
-		    Some((color_diffuse+color_reflect, 0.0))
-		} else {
-		    Some((color_diffuse, 0.0))
+		let mut color_tally = Color{red: 0.0, green: 0.0, blue: 0.0};
+		for node in obj.get_nodes() {
+		    color_tally = color_tally + node.resolve(scene, new_origin, surface_normal, reflection_vector, obj, n_th+1);
 		}
+		Some((color_tally, 0.0))
 	    } else {
 		None
 	    };

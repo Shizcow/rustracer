@@ -1,4 +1,3 @@
-
 #![allow(dead_code)]
 
 extern crate gdk_pixbuf;
@@ -62,11 +61,28 @@ fn build_ui(application: &gtk::Application) {
     let metal_texture = ImageMap::new_from_file("assets/metal.png".to_string(), 2.0);
     let static_texture = ImageMap::new_from_file("assets/static.jpg".to_string(), 5.0);
 
-    let static_material = Material::new(Some(Texture::ImageMap(static_texture)), 0.9, 1.0, 0.0);
-    let untextured_material = Material::new(None, 0.9, 1.0, 0.25);
-    let chrome_material = Material::new(Some(Texture::Color(Color{red: 71.0, green: 221.0, blue: 255.0})), 0.8, 0.15, 1.0);
-    let blue_material = Material::new(Some(Texture::Color(Color{red: 0.0, green: 0.0, blue: 255.0})), 0.9, 1.0, 1.0);
-    let metal_material = Material::new(Some(Texture::ImageMap(metal_texture)), 1.0, 1.0, 1.0);
+    let mut static_nodes = Vec::new();
+    static_nodes.push(Node::Diffuse(ShadeDiffuse::new(1.0)));
+    let static_material = Material::new(Some(Texture::ImageMap(static_texture)), 0.9, static_nodes);
+    
+    let mut untextured_nodes = Vec::new();
+    untextured_nodes.push(Node::Diffuse(ShadeDiffuse::new(1.0)));
+    untextured_nodes.push(Node::Reflect(ShadeReflect::new(0.25)));
+    let untextured_material = Material::new(None, 0.9, untextured_nodes);
+    
+    let mut chrome_nodes = Vec::new();
+    chrome_nodes.push(Node::Diffuse(ShadeDiffuse::new(0.15)));
+    chrome_nodes.push(Node::Reflect(ShadeReflect::new(1.0)));
+    let chrome_material = Material::new(Some(Texture::Color(Color{red: 71.0, green: 221.0, blue: 255.0})), 0.8, chrome_nodes);
+    
+    let mut blue_nodes = Vec::new();
+    blue_nodes.push(Node::Diffuse(ShadeDiffuse::new(1.0)));
+    blue_nodes.push(Node::Reflect(ShadeReflect::new(1.0)));
+    let blue_material = Material::new(Some(Texture::Color(Color{red: 0.0, green: 0.0, blue: 255.0})), 0.9, blue_nodes);
+    let mut metal_nodes = Vec::new();
+    metal_nodes.push(Node::Diffuse(ShadeDiffuse::new(1.0)));
+    metal_nodes.push(Node::Reflect(ShadeReflect::new(1.0)));
+    let metal_material = Material::new(Some(Texture::ImageMap(metal_texture)), 1.0, metal_nodes);
     
     let mut objects : Vec<SceneObject> = Vec::new();
 
@@ -78,6 +94,9 @@ fn build_ui(application: &gtk::Application) {
     
     let mut lights  : Vec<SceneLight>  = Vec::new();
     
+    lights.push(SceneLight::Sun(Sun::new(Vector3{x: -0.5, y: -3.0, z: -1.0},
+					 Color{red: 255.0, green: 150.0, blue: 150.0},
+					 10.0)));
     lights.push(SceneLight::PointLight(PointLight::new(Point3{x: -0.5, y: -3.0, z: 15.0},
 						       Color{red: 255.0, green: 250.0, blue: 250.0},
 						       15000.0)));
