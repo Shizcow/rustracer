@@ -6,6 +6,8 @@ use crate::cgmath::MetricSpace;
 use cgmath::Point3;
 use cgmath::Vector3;
 
+static RECURSION_DEPTH : i32 = 25;
+static NORMAL_BIAS     : f64 = 1e-13; // used for shadow ache and such
 
 pub struct ImageMap {
     pub pixvec: Pixvec,
@@ -32,17 +34,18 @@ pub struct ShadeDiffuse {
 impl ShadeDiffuse{
     pub fn shade_diffuse(&self, scene: &Scene, location: Point3<f64>, surface_normal: Vector3<f64>, obj: &SceneObject) -> Color {
 	let mut mix = Vector3::<f64>::new(0.0, 0.0, 0.0);
+	let new_origin = location+surface_normal*NORMAL_BIAS;
 	for light in scene.lights.iter() {
-	    let dir_to_light = light.get_direction(location);
-	    let dist_to_light = light.dist_to(location);
-	    let shadow_ray = Ray{origin: location, direction: dir_to_light};
+	    let dir_to_light = light.get_direction(new_origin);
+	    let dist_to_light = light.dist_to(new_origin);
+	    let shadow_ray = Ray{origin: new_origin, direction: dir_to_light};
 
 	    if !shadow_ray.any_intersect(scene, dist_to_light) {
 		let dp = surface_normal.dot(dir_to_light);
 		let power =  light.get_apparent_intensity(dp, dist_to_light)
 		    * obj.get_albedo();
 
-		let color = (obj.get_texture_color(&location))
+		let color = (obj.get_texture_color(&new_origin))
 		    * (*light.get_color()) * power;
 		
 		mix[0] += color.red   as f64;
@@ -63,9 +66,10 @@ pub struct ShadeReflect {
 }
 
 impl ShadeReflect {
-    pub fn shade_reflect(&self, scene: &Scene, location: Point3<f64>, reflection_vector: Vector3<f64>, _obj: &SceneObject, n_th: i32) -> Color {
-	if n_th < 10 {
-	    let reflection_ray = Ray{origin: location, direction: reflection_vector};
+    pub fn shade_reflect(&self, scene: &Scene, location: Point3<f64>, incident: Vector3<f64>, surface_normal: Vector3<f64>, _obj: &SceneObject, n_th: i32) -> Color {
+	if n_th < RECURSION_DEPTH {
+	    let reflection_vector = (incident-2.0*incident.dot(surface_normal)*surface_normal).normalize();
+	    let reflection_ray = Ray{origin: location+surface_normal*NORMAL_BIAS, direction: reflection_vector};
 	    if let Some((color, _power)) = reflection_ray.bounce(scene, n_th+1) {
 		color*self.strength
 	    } else {
@@ -80,28 +84,68 @@ impl ShadeReflect {
     }
 }
 
+pub struct ShadeRefract {
+    strength: f64,
+    index: f64
+}
+
+impl ShadeRefract {
+    pub fn shade_refract(&self, scene: &Scene, location: Point3<f64>, incident: Vector3<f64>, surface_normal: Vector3<f64>, n_th: i32) -> Color {
+	if n_th < RECURSION_DEPTH {
+	    let dp = incident.dot(surface_normal);
+	    let ref_dp = if dp < 0.0 {-dp} else {dp}; // correct based on inside or outside
+	    let ref_n = if dp < 0.0 {surface_normal} else {-surface_normal};
+	    
+	    let eta = if dp < 0.0 {1.0/self.index} else {self.index}; // set up total refractive index
+	    
+	    let dist2 = 1.0 - (eta * eta) * (1.0 - ref_dp * ref_dp); // direction of refraction
+	    if dist2 < 0.0 { // wrong direction -- ignore
+		Color{red: 0.0, green: 0.0, blue: 0.0}
+	    } else {
+		if let Some((color, _power)) = (Ray{ // trace refraction
+		    origin: location - ref_n*NORMAL_BIAS,
+		    direction: (incident + ref_dp*ref_n)*eta - ref_n*dist2.sqrt(),
+		}).bounce(scene, n_th+1) {
+		    color*self.strength
+		} else {
+		    Color{red: 0.0, green: 0.0, blue: 0.0} // no collision after refraction
+		}
+	    }
+	} else {
+	    Color{red: 0.0, green: 0.0, blue: 0.0} // overflow
+	}
+    }
+    pub fn new(strength: f64, index: f64) -> Self {
+	ShadeRefract{strength: strength, index: index}
+    }
+}
+
 pub enum Node {
     Diffuse(ShadeDiffuse),
-    Reflect(ShadeReflect)
+    Reflect(ShadeReflect),
+    Refract(ShadeRefract)
 }
 
 impl Node {
-    pub fn resolve(&self, scene: &Scene, location: Point3<f64>, surface_normal: Vector3<f64>, reflection_vector: Vector3<f64>, obj: &SceneObject, n_th: i32) -> Color {
+    pub fn resolve(&self, scene: &Scene, location: Point3<f64>, surface_normal: Vector3<f64>, incident: Vector3<f64>, obj: &SceneObject, n_th: i32) -> Color {
 	match *self {
             Node::Diffuse(ref n) => n.shade_diffuse(scene, location, surface_normal, obj),
-            Node::Reflect(ref n) => n.shade_reflect(scene, location, reflection_vector, obj, n_th),
+            Node::Reflect(ref n) => n.shade_reflect(scene, location, incident, surface_normal, obj, n_th),
+            Node::Refract(ref n) => n.shade_refract(scene, location, incident, surface_normal, n_th),
         }
     }
     pub fn get_strength(&self) -> f64 {
 	match *self {
             Node::Diffuse(ref n) => n.strength,
-            Node::Reflect(ref n) => n.strength
+            Node::Reflect(ref n) => n.strength,
+            Node::Refract(ref n) => n.strength
         }
     }
     pub fn set_strength(&mut self, new_strength: f64){
 	match *self {
             Node::Diffuse(ref mut n) => n.strength = new_strength,
-            Node::Reflect(ref mut n) => n.strength = new_strength
+            Node::Reflect(ref mut n) => n.strength = new_strength,
+            Node::Refract(ref mut n) => n.strength = new_strength
         }
     }
 }
@@ -141,8 +185,8 @@ impl Sphere {
 	radius: f64,
 	material: Material) -> Self {
 	Self{origin: origin, radius: radius, material: material}
-    }                                  // distance --v  v--location  v--direction  v-- surface normal
-    pub fn intersects(&self, ray: &Ray) -> Option<(f64, Point3<f64>, Vector3<f64>, Vector3<f64>)> {
+    }                                  // distance --v  v--location  v-- surface normal
+    pub fn intersects(&self, ray: &Ray) -> Option<(f64, Point3<f64>, Vector3<f64>)> {
 	let ray_to_sphere = self.origin - ray.origin;
 	let adj = ray_to_sphere.dot(ray.direction);
 	let frinde_radius2 = ray_to_sphere.dot(ray_to_sphere) - (adj * adj); //squared
@@ -158,12 +202,18 @@ impl Sphere {
             return None; // wrong direction
 	}
 
-	let distance = intersect_front.min(intersect_back);
+	let distance = 
+	    if intersect_front < 0.0 {
+		intersect_back
+	    } else if intersect_back < 0.0 {
+		intersect_front
+	    } else {
+		intersect_front.min(intersect_back)
+	    };
 	let intersection_point = ray.origin+(ray.direction*distance);
 	let surface_normal = (intersection_point-self.origin).normalize();
-	let reflection_vector = ray.direction-2.0*ray.direction.dot(surface_normal)*surface_normal;
 	
-	Some((distance, intersection_point, reflection_vector.normalize(), surface_normal))
+	Some((distance, intersection_point, surface_normal))
     }
     fn get_texture_coords(&self, location: &Point3<f64>) -> (f64, f64) {
 	let v = location-self.origin;
@@ -228,8 +278,8 @@ impl Plane {
 	       normal: Vector3<f64>,
 	       material: Material) -> Self {
 	Self{origin: origin, normal: normal.normalize(), material: material}
-    }                                  // distance --v  v--location  v--direction  v-- surface normal
-    pub fn intersects(&self, ray: &Ray) -> Option<(f64, Point3<f64>, Vector3<f64>, Vector3<f64>)> {
+    }                                  // distance --v  v--location  v-- surface normal
+    pub fn intersects(&self, ray: &Ray) -> Option<(f64, Point3<f64>, Vector3<f64>)> {
         let proj = self.normal.dot(ray.direction);
         if proj > 0.0 { // anything less than parallel
             let distance = (self.origin - ray.origin).dot(self.normal) / proj;
@@ -238,8 +288,7 @@ impl Plane {
 		let intersection_point = ray.origin+(ray.direction*distance);
 		// finally, the reflection is found as:
 		let surface_normal = -self.normal;
-		let reflection_vector = ray.direction-2.0*ray.direction.dot(surface_normal)*surface_normal;
-                return Some((distance, intersection_point, reflection_vector.normalize(), surface_normal));
+                return Some((distance, intersection_point, surface_normal));
             } else {
 		None
 	    }
@@ -412,7 +461,7 @@ impl SceneObject {
             SceneObject::Plane(ref p) => p.get_texture_color(location),
         }
     }
-    pub fn intersects(&self, ray: &Ray) -> Option<(f64, Point3<f64>, Vector3<f64>, Vector3<f64>)> {
+    pub fn intersects(&self, ray: &Ray) -> Option<(f64, Point3<f64>, Vector3<f64>)> {
         match *self {
             SceneObject::Sphere(ref s) => s.intersects(ray),
             SceneObject::Plane(ref p) => p.intersects(ray),
@@ -431,7 +480,7 @@ impl Ray {
 	let mut hit_something = false;
 	
 	for scene_object in scene.objects.iter() {
-	    if let Some((dist, _location, _direction, _normal)) = scene_object.intersects(self) {
+	    if let Some((dist, _location, _normal)) = scene_object.intersects(self) {
 		if dist <= target_distance {
 		    hit_something = true;
 		    break;
@@ -440,14 +489,14 @@ impl Ray {
 	}
 	hit_something
     }
-    fn closest_intersect<'a>(&self, scene: &'a Scene) -> Option<(f64, Point3<f64>, Vector3<f64>, Vector3<f64>, &'a SceneObject)> {
+    fn closest_intersect<'a>(&self, scene: &'a Scene) -> Option<(f64, Point3<f64>, Vector3<f64>, &'a SceneObject)> {
 	// finds the closest intersection and returns an Option with the following in order:
 	// distance, location of intersection, reflection direction, surface normal of object at reflected point, reference to object (for color, etc.)
-	let mut intersection : Option<(f64, Point3<f64>, Vector3<f64>, Vector3<f64>, &'a SceneObject)> = None;
+	let mut intersection : Option<(f64, Point3<f64>, Vector3<f64>, &'a SceneObject)> = None;
 	for scene_object in scene.objects.iter() {
-	    if let Some((dist, location, reflection, normal)) = scene_object.intersects(self) {
+	    if let Some((dist, location, normal)) = scene_object.intersects(self) {
 		if !intersection.is_some() || intersection.unwrap().0 > dist {
-		    intersection = Some((dist, location, reflection, normal, scene_object));
+		    intersection = Some((dist, location, normal, scene_object));
 		}
 	    }
 	}
@@ -455,11 +504,10 @@ impl Ray {
     } //                                                        v-- power @ pixel
     pub fn bounce(&self, scene: &Scene, n_th: i32) -> Option<(Color, f64)> { // from direction of next
 	let ret = 
-	    if let Some((_dist, location, reflection_vector, surface_normal, obj)) = self.closest_intersect(scene) {
-		let new_origin = location+surface_normal*1e-13;
+	    if let Some((_dist, location, surface_normal, obj)) = self.closest_intersect(scene) {
 		let mut color_tally = Color{red: 0.0, green: 0.0, blue: 0.0};
 		for node in obj.get_nodes() {
-		    color_tally = color_tally + node.resolve(scene, new_origin, surface_normal, reflection_vector, obj, n_th+1);
+		    color_tally = color_tally + node.resolve(scene, location, surface_normal, self.direction, obj, n_th+1);
 		}
 		Some((color_tally, 0.0))
 	    } else {
