@@ -81,9 +81,14 @@ fn build_ui(application: &gtk::Application) {
     let chrome_material = Material::new(Some(Texture::Color(Color{red: 71.0, green: 221.0, blue: 255.0})), 0.8, chrome_nodes);
     
     let mut blue_nodes = Vec::new();
-    blue_nodes.push(Node::Refract(ShadeRefract::new(1.0, 1.05)));
-    blue_nodes.push(Node::Diffuse(ShadeDiffuse::new(0.05)));
-    let blue_material = Material::new(Some(Texture::Color(Color{red: 0.0, green: 0.0, blue: 255.0})), 0.9, blue_nodes);
+    blue_nodes.push(Node::Fresnel(ShadeFresnel::new(1.0, 1.5)));
+    //blue_nodes.push(Node::Diffuse(ShadeDiffuse::new(0.05)));
+    let blue_material = Material::new(Some(Texture::Color(Color{red: 100.0, green: 100.0, blue: 255.0})), 1.0, blue_nodes);
+    
+    let mut backdrop_nodes = Vec::new();
+    backdrop_nodes.push(Node::Diffuse(ShadeDiffuse::new(1.0)));
+    let backdrop_material = Material::new(Some(Texture::Color(Color{red: 50.0, green: 50.0, blue: 255.0})), 0.5, backdrop_nodes);
+    
     let mut metal_nodes = Vec::new();
     metal_nodes.push(Node::Diffuse(ShadeDiffuse::new(1.0)));
     metal_nodes.push(Node::Reflect(ShadeReflect::new(1.0)));
@@ -95,14 +100,18 @@ fn build_ui(application: &gtk::Application) {
     objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 0.0, y:  -0.2, z: 1.3}, 0.3, untextured2_material)));
     objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 5.0, y:  0.0, z: 0.0}, 0.3, static_material)));
     objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 5.0, y: -0.5, z: 0.5}, 0.5, untextured_material)));
-    objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 4.5, y:  0.7, z: 0.7}, 0.7, blue_material)));
+    objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 4.5, y:  1.0, z: 1.5}, 1.0, blue_material)));
     objects.push(SceneObject::Plane(Plane::new(Point3{x: 0.0, y: 0.0, z: -0.3}, Vector3{x: 0.0, y: 0.0, z: -1.0}, metal_material)));
+    objects.push(SceneObject::Plane(Plane::new(Point3{x: 30.0, y: 0.0, z: 0.0}, Vector3{x: 1.0, y: 0.0, z: 0.0}, backdrop_material)));
     
     let mut lights  : Vec<SceneLight>  = Vec::new();
-    
+    /*
     lights.push(SceneLight::Sun(Sun::new(Vector3{x: -0.5, y: -3.0, z: -1.0},
 					 Color{red: 255.0, green: 150.0, blue: 150.0},
-					 10.0)));
+					 100.0)));*/
+    lights.push(SceneLight::PointLight(PointLight::new(Point3{x: -10.0, y: 0.0, z: 150.0},
+						       Color{red: 255.0, green: 250.0, blue: 250.0},
+						       1500000.0)));
     lights.push(SceneLight::PointLight(PointLight::new(Point3{x: -0.5, y: -3.0, z: 15.0},
 						       Color{red: 255.0, green: 250.0, blue: 250.0},
 						       15000.0)));
@@ -112,12 +121,6 @@ fn build_ui(application: &gtk::Application) {
     lights.push(SceneLight::PointLight(PointLight::new(Point3{x: 20.0, y: -4.0, z: 0.5},
 						       Color{red: 255.0, green: 250.0, blue: 250.0},
 						       45.0)));
-    lights.push(SceneLight::PointLight(PointLight::new(Point3{x: 30.0, y: -6.0, z: 0.5},
-						       Color{red: 255.0, green: 250.0, blue: 250.0},
-						       45.0)));
-    lights.push(SceneLight::PointLight(PointLight::new(Point3{x: 40.0, y: -8.0, z: 0.5},
-						       Color{red: 255.0, green: 250.0, blue: 250.0},
-						       45.0)));
     lights.push(SceneLight::PointLight(PointLight::new(Point3{x: 4.0, y: 0.3, z: 0.15},
 						       Color{red: 255.0, green: 150.0, blue: 150.0},
 						       5.0)));
@@ -125,8 +128,8 @@ fn build_ui(application: &gtk::Application) {
 						       Color{red: 255.0, green: 150.0, blue: 150.0},
 						       5.0)));
     let mut scene = Scene{camera: Camera{location: Point3{x: 0.0, y: 0.0, z: 0.5},
-					 rotation: Vector3{x: 0.0, y: -0.06, z: 0.0},
-					 focal_length: 0.8,
+					 rotation: Vector3{x: 0.0, y: 0.15, z: 0.0},
+					 focal_length: 0.58,
 					 resolution: Resolution{x: WIDTH_RENDER, y: HEIGHT_RENDER},
 					 hx: 0.5,
 					 hy: 0.375},
