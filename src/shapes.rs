@@ -32,6 +32,9 @@ pub struct ShadeDiffuse {
 }
 
 impl ShadeDiffuse{
+    pub fn new(strength: f64) -> Self {
+	ShadeDiffuse{strength: strength}
+    }
     pub fn shade_diffuse(&self, scene: &Scene, location: Point3<f64>, surface_normal: Vector3<f64>, obj: &SceneObject) -> Color {
 	let mut mix = Vector3::<f64>::new(0.0, 0.0, 0.0);
 	let new_origin = location+surface_normal*NORMAL_BIAS;
@@ -56,9 +59,6 @@ impl ShadeDiffuse{
 	mix = mix/(scene.lights.len() as f64); // take average
 	Color{red: mix[0], green: mix[1], blue: mix[2]}*self.strength
     }
-    pub fn new(strength: f64) -> Self {
-	ShadeDiffuse{strength: strength}
-    }
 }
 
 pub struct ShadeReflect {
@@ -66,6 +66,9 @@ pub struct ShadeReflect {
 }
 
 impl ShadeReflect {
+    pub fn new(strength: f64) -> Self {
+	ShadeReflect{strength: strength}
+    }
     pub fn shade_reflect(&self, scene: &Scene, location: Point3<f64>, incident: Vector3<f64>, surface_normal: Vector3<f64>, _obj: &SceneObject, n_th: i32) -> Color {
 	if n_th < RECURSION_DEPTH {
 	    let reflection_vector = (incident-2.0*incident.dot(surface_normal)*surface_normal).normalize();
@@ -79,9 +82,6 @@ impl ShadeReflect {
 	    Color{red: 0.0, green: 0.0, blue: 0.0}
 	}
     }
-    pub fn new(strength: f64) -> Self {
-	ShadeReflect{strength: strength}
-    }
 }
 
 pub struct ShadeRefract {
@@ -90,47 +90,28 @@ pub struct ShadeRefract {
 }
 
 impl ShadeRefract {
-    pub fn shade_refract(&self, scene: &Scene, location: Point3<f64>, incident: Vector3<f64>, surface_normal: Vector3<f64>, obj: &SceneObject, n_th: i32) -> Color {
-	if n_th < RECURSION_DEPTH {
-	    let dp = incident.dot(surface_normal);
-	    let ref_dp = if dp < 0.0 {-dp} else {dp}; // correct based on inside or outside
-	    let ref_n = if dp < 0.0 {surface_normal} else {-surface_normal};
-	    
-	    let eta = if dp < 0.0 {1.0/self.index} else {self.index}; // set up total refractive index
-	    
-	    let dist2 = 1.0 - (eta * eta) * (1.0 - ref_dp * ref_dp); // direction of refraction
-	    if dist2 < 0.0 { // wrong direction -- ignore
-		Color{red: 0.0, green: 0.0, blue: 0.0}
-	    } else {
-		if let Some((color, _power)) = (Ray{ // trace refraction
-		    origin: location - ref_n*NORMAL_BIAS,
-		    direction: (incident + ref_dp*ref_n)*eta - ref_n*dist2.sqrt(),
-		}).trace(scene, n_th+1) {
-		    color*self.strength*obj.get_texture_color(&location)
-		} else {
-		    Color{red: 0.0, green: 0.0, blue: 0.0} // no collision after refraction
-		}
-	    }
-	} else {
-	    Color{red: 0.0, green: 0.0, blue: 0.0} // overflow
-	}
-    }
     pub fn new(strength: f64, index: f64) -> Self {
 	ShadeRefract{strength: strength, index: index}
     }
-}
-
-pub struct ShadeFresnel {
-    strength: f64,
-    index: f64
-}
-
-impl ShadeFresnel {
-    pub fn new(strength: f64, index: f64) -> Self {
-	ShadeFresnel{strength: strength, index: index}
+    fn refract_only(&self, scene: &Scene, location: Point3<f64>, incident: Vector3<f64>, surface_normal: Vector3<f64>, n_th: i32, dp: f64, eta: f64) -> Color {
+	// refract only (no fresnel)	
+	if n_th < RECURSION_DEPTH { // else overflow
+	    let ref_dp = if dp < 0.0 {-dp} else {dp}; // correct based on inside or outside
+	    let ref_n = if dp < 0.0 {surface_normal} else {-surface_normal};
+	    
+	    let dist2 = 1.0 - eta.powi(2) * (1.0 - ref_dp.powi(2)); // direction of refraction
+	    if dist2 > 0.0 { // else wrong direction -- ignore
+		if let Some((color, _power)) = (Ray{ // trace refraction
+		    origin: location - ref_n*NORMAL_BIAS,
+		    direction: (incident + ref_dp*ref_n)*eta - ref_n*dist2.sqrt(),
+		}).trace(scene, n_th+1) { // else no collision after refraction
+		    return color;
+		}
+	    }
+	}
+	Color{red: 0.0, green: 0.0, blue: 0.0}
     }
-    fn fresnel(&self, incident: Vector3<f64>, normal: Vector3<f64>, index: f64) -> f64 {
-	/*
+    fn fresnel(&self, dp: f64, eta_i: f64, eta_t: f64) -> f64 {
 	let sin_t = eta_i / eta_t * (1.0 - dp * dp).max(0.0).sqrt();
 	if sin_t > 1.0 {
             1.0
@@ -141,47 +122,31 @@ impl ShadeFresnel {
             let r_p = ((eta_i * cos_i) - (eta_t * cos_t)) / ((eta_i * cos_i) + (eta_t * cos_t));
             (r_s * r_s + r_p * r_p) / 2.0
 	}
-	 */
-	let i_dot_n = incident.dot(normal);
-	let mut eta_i = 1.0;
-	let mut eta_t = index as f64;
-	if i_dot_n > 0.0 {
-            eta_i = eta_t;
-            eta_t = 1.0;
-	}
-
-	let sin_t = eta_i / eta_t * (1.0 - i_dot_n * i_dot_n).max(0.0).sqrt();
-	if sin_t > 1.0 {
-            //Total internal reflection
-            return 1.0;
-	} else {
-            let cos_t = (1.0 - sin_t * sin_t).max(0.0).sqrt();
-            let cos_i = cos_t.abs();
-            let r_s = ((eta_t * cos_i) - (eta_i * cos_t)) / ((eta_t * cos_i) + (eta_i * cos_t));
-            let r_p = ((eta_i * cos_i) - (eta_t * cos_t)) / ((eta_i * cos_i) + (eta_t * cos_t));
-            return (r_s * r_s + r_p * r_p) / 2.0;
-	}
     }
-    pub fn shade_fresnel(&self, scene: &Scene, location: Point3<f64>, incident: Vector3<f64>, surface_normal: Vector3<f64>, obj: &SceneObject, n_th: i32) -> Color {
-	let mut refraction_color = Color{red: 0.0, green: 0.0, blue: 0.0};
-        let kr = self.fresnel(incident, surface_normal, self.index);
+    pub fn shade_refract(&self, scene: &Scene, location: Point3<f64>, incident: Vector3<f64>, surface_normal: Vector3<f64>, obj: &SceneObject, n_th: i32) -> Color {
+	// refraction + fresnel
+	let dp = incident.dot(surface_normal);
+	let eta_i = if dp < 0.0 {1.0} else {self.index};
+	let eta_t = if dp < 0.0 {self.index} else {1.0};
+	
+        let kr = self.fresnel(dp, eta_i, eta_t);
+        let surface_color = obj.get_texture_color(&location);
+        let refraction_color = if kr < 1.0 {
+	    self.refract_only(scene, location, incident, surface_normal, n_th, dp, eta_i/eta_t) * (1.0 - kr)
+	} else {
+	    Color{red: 0.0, green: 0.0, blue: 0.0}
+	};
 
-        if kr < 1.0 {
-            refraction_color = (ShadeRefract{strength: 1.0, index: self.index}).shade_refract(scene, location, incident, surface_normal, obj, n_th+1);
-        }
+	let reflection_color = (ShadeReflect{strength: kr}).shade_reflect(scene, location, incident, surface_normal, obj, n_th);
 
-        let reflection_color =  (ShadeReflect{strength: 1.0}).shade_reflect(scene, location, incident, surface_normal, obj, n_th+1);
-        let mut color = reflection_color * kr + refraction_color * (1.0 - kr);
-        color = color * self.strength;
-        color
+        (reflection_color+refraction_color)*self.strength*surface_color
     }
 }
 
 pub enum Node {
     Diffuse(ShadeDiffuse),
     Reflect(ShadeReflect),
-    Refract(ShadeRefract),
-    Fresnel(ShadeFresnel)
+    Refract(ShadeRefract)
 }
 
 impl Node {
@@ -190,23 +155,20 @@ impl Node {
             Node::Diffuse(ref n) => n.shade_diffuse(scene, location, surface_normal, obj),
             Node::Reflect(ref n) => n.shade_reflect(scene, location, incident, surface_normal, obj, n_th),
             Node::Refract(ref n) => n.shade_refract(scene, location, incident, surface_normal, obj, n_th),
-            Node::Fresnel(ref n) => n.shade_fresnel(scene, location, incident, surface_normal, obj, n_th),
         }
     }
     pub fn get_strength(&self) -> f64 {
 	match *self {
             Node::Diffuse(ref n) => n.strength,
             Node::Reflect(ref n) => n.strength,
-            Node::Refract(ref n) => n.strength,
-            Node::Fresnel(ref n) => n.strength
+            Node::Refract(ref n) => n.strength
         }
     }
     pub fn set_strength(&mut self, new_strength: f64){
 	match *self {
             Node::Diffuse(ref mut n) => n.strength = new_strength,
             Node::Reflect(ref mut n) => n.strength = new_strength,
-            Node::Refract(ref mut n) => n.strength = new_strength,
-            Node::Fresnel(ref mut n) => n.strength = new_strength
+            Node::Refract(ref mut n) => n.strength = new_strength
         }
     }
 }

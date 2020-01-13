@@ -81,7 +81,7 @@ fn build_ui(application: &gtk::Application) {
     let chrome_material = Material::new(Some(Texture::Color(Color{red: 71.0, green: 221.0, blue: 255.0})), 0.8, chrome_nodes);
     
     let mut blue_nodes = Vec::new();
-    blue_nodes.push(Node::Fresnel(ShadeFresnel::new(1.0, 1.5)));
+    blue_nodes.push(Node::Refract(ShadeRefract::new(1.0, 1.5)));
     //blue_nodes.push(Node::Diffuse(ShadeDiffuse::new(0.05)));
     let blue_material = Material::new(Some(Texture::Color(Color{red: 100.0, green: 100.0, blue: 255.0})), 1.0, blue_nodes);
     
