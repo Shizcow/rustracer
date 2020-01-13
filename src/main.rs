@@ -9,11 +9,11 @@ extern crate cgmath;
 mod camera_math;
 mod pixvec;
 mod shapes;
-mod commontypes;
+mod color;
 use crate::pixvec::*;
 use crate::camera_math::*;
 use crate::shapes::*;
-use crate::commontypes::*;
+use crate::color::*;
 use crate::cgmath::InnerSpace;
 
 use gio::prelude::*;
@@ -111,13 +111,13 @@ fn build_ui(application: &gtk::Application) {
     
     let mut lights : Vec<SceneLight>  = Vec::new();
     lights.push(SceneLight::PointLight(PointLight::new(Point3{x: 60.0, y: 0.0, z: 150.0},
-						       Color::new_from_linear(255, 255, 255),
+						       color::consts::WHITE,
 						       1500000.0)));
     lights.push(SceneLight::PointLight(PointLight::new(Point3{x: -0.5, y: -3.0, z: 15.0},
-						       Color::new_from_linear(255, 255, 255),
+						       color::consts::WHITE,
 						       15000.0)));
     lights.push(SceneLight::PointLight(PointLight::new(Point3{x: 0.0, y: 3.0, z: 15.0},
-						       Color::new_from_linear(255, 255, 255),
+						       color::consts::WHITE,
 						       15000.0)));
     let mut scene = Scene{camera: Camera{location: Point3{x: 0.0, y: 0.0, z: -0.1},
 					 rotation: Vector3{x: 0.0, y: 0.2, z: 0.0},

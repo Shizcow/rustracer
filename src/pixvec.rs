@@ -1,5 +1,5 @@
 use std::ops::{Index, IndexMut};
-use crate::commontypes::*;
+use crate::color::*;
 
 #[allow(dead_code)]
 pub struct Pixvec { // two dimensional
@@ -17,7 +17,7 @@ impl Pixvec {
     pub fn new(width: usize, // create new, assume RGB, no alpha
 	       height: usize) -> Pixvec {
 	let mut data = Vec::with_capacity(height as usize);
-	data.resize_with(height as usize, || vec![Color::new_from_linear(0, 0, 0); width as usize]);
+	data.resize_with(height as usize, || vec![consts::BLACK; width as usize]);
 	Pixvec {data: data, colorspace: gdk_pixbuf::Colorspace::Rgb, has_alpha: false, bits_per_sample: 8, width: width, height: height, rowstride: 3*width}
     }
     pub fn new_from_vec(mut data: Vec<Vec<Color>>,
@@ -29,11 +29,11 @@ impl Pixvec {
 			rowstride: usize) -> Pixvec {
 	for row in data.iter_mut() {
 	    if row.len() < width as usize {
-		row.resize_with(width as usize, || Color::new_from_linear(0, 0, 0));
+		row.resize_with(width as usize, || consts::BLACK);
 	    }
 	}
 	if data.len() < height as usize {
-	    data.resize_with(height as usize, || vec![Color::new_from_linear(0, 0, 0); width as usize]);
+	    data.resize_with(height as usize, || vec![consts::BLACK; width as usize]);
 	}
 	Pixvec {data: data, colorspace: colorspace, has_alpha: has_alpha, bits_per_sample: bits_per_sample, width: width, height: height, rowstride: rowstride}
     }

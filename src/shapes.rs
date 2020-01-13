@@ -1,4 +1,4 @@
-use crate::commontypes::*;
+use crate::color::*;
 use crate::pixvec::*;
 use crate::camera_math::Camera;
 use crate::cgmath::InnerSpace;
@@ -36,7 +36,7 @@ impl ShadeDiffuse{
 	ShadeDiffuse{strength: strength}
     }
     pub fn shade_diffuse(&self, scene: &Scene, location: Point3<f64>, surface_normal: Vector3<f64>, obj: &SceneObject) -> Color {
-	let mut mix = Color::new_from_linear(0, 0, 0);
+	let mut mix = consts::BLACK;
 	let new_origin = location+surface_normal*NORMAL_BIAS;
 	for light in scene.lights.iter() {
 	    let dir_to_light = light.get_direction(new_origin);
@@ -74,10 +74,10 @@ impl ShadeReflect {
 	    if let Some((color, _power)) = reflection_ray.trace(scene, n_th+1) {
 		color*self.strength
 	    } else {
-		Color::new_from_linear(0, 0, 0)
+		consts::BLACK
 	    }
 	} else {
-	    Color::new_from_linear(0, 0, 0)
+	    consts::BLACK
 	}
     }
 }
@@ -107,7 +107,7 @@ impl ShadeRefract {
 		}
 	    }
 	}
-	Color::new_from_linear(0, 0, 0)
+	consts::BLACK
     }
     fn fresnel(&self, dp: f64, eta_i: f64, eta_t: f64) -> f64 {
 	let sin_t = eta_i / eta_t * (1.0 - dp * dp).max(0.0).sqrt();
@@ -132,7 +132,7 @@ impl ShadeRefract {
         let refraction_color = if kr < 1.0 {
 	    self.refract_only(scene, location, incident, surface_normal, n_th, dp, eta_i/eta_t) * (1.0 - kr)
 	} else {
-	    Color::new_from_linear(0, 0, 0)
+	    consts::BLACK
 	};
 
 	let reflection_color = (ShadeReflect{strength: kr}).shade_reflect(scene, location, incident, surface_normal, obj, n_th);
@@ -278,7 +278,7 @@ impl Sphere {
 		if ((phi/(std::f64::consts::PI))%0.5 < 0.25) ^ ((theta/(std::f64::consts::PI))%0.5 < 0.25) {
 		    Color::new_from_linear(225, 255, 225)
 		} else {
-		    Color::new_from_linear(0, 0, 0)
+		    consts::BLACK
 		}
 	    }
 	}
@@ -373,7 +373,7 @@ impl Plane {
 		if (x%0.5 < 0.25) ^ (y%0.5 < 0.25) {
 		    Color::new_from_linear(225, 255, 225)
 		} else {
-		    Color::new_from_linear(0, 0, 0)
+		    consts::BLACK
 		}
 	    }
 	}
@@ -526,7 +526,7 @@ impl Ray {
     pub fn trace(&self, scene: &Scene, n_th: i32) -> Option<(Color, f64)> { // from direction of next
 	let ret = 
 	    if let Some((_dist, location, surface_normal, obj)) = self.closest_intersect(scene) {
-		let mut color_tally = Color::new_from_linear(0, 0, 0);
+		let mut color_tally = consts::BLACK;
 		for node in obj.get_nodes() {
 		    color_tally = color_tally + node.resolve(scene, location, surface_normal, self.direction, obj, n_th+1);
 		}

@@ -65,7 +65,7 @@ impl Color {
 	      blue: Color::p_srgb_to_linear(blue)}
     }
     pub fn new_from_linear(red: u8, green: u8, blue: u8) -> Self {
-	Color{red: red as f64, blue: blue as f64, green: green as f64}/255.0
+	Color{red: (red as f64)/255.0, blue: (blue as f64)/255.0, green: (green as f64)/255.0}
     }
 }
 
@@ -111,3 +111,9 @@ impl Mul<Color> for Color {
     }
 }
 
+
+pub mod consts {
+    use crate::color::Color;
+    pub const WHITE: Color = Color{red: 1.0, green: 1.0, blue: 1.0};	
+    pub const BLACK: Color = Color{red: 0.0, green: 0.0, blue: 0.0};	
+}
