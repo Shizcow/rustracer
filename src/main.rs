@@ -23,10 +23,10 @@ use gdk_pixbuf::Pixbuf;
 use cgmath::Vector3;
 use cgmath::Point3;
 
-static WIDTH_RENDER    : usize = 1920;//640;
-static HEIGHT_RENDER   : usize = 1440;//480;
-static WIDTH_VIEWPORT  : i32   = 1920;
-static HEIGHT_VIEWPORT : i32   = 1440;
+static WIDTH_RENDER    : usize = 1920;//2880*2;//1920;//640;
+static HEIGHT_RENDER   : usize = 1440;//2160*2;//1440;//480;
+static WIDTH_VIEWPORT  : i32   = 1920;//2880;
+static HEIGHT_VIEWPORT : i32   = 1440;//2160;
 
 fn render_scene(scene: &mut Scene, pvec: &mut Pixvec) {
     let focal_point = scene.camera.get_focal_point();
@@ -42,14 +42,6 @@ fn render_scene(scene: &mut Scene, pvec: &mut Pixvec) {
 	    } // else - no collision
 	}
     }
-    /*
-// white balance correction
-    for i in 0..pvec.height {
-	for j in 0..pvec.width {
-	    pvec[i][j] = pvec[i][j] * (1.0 / scene.white_balance);
-	}
-    }
-*/
 }
 
 fn build_ui(application: &gtk::Application) {
@@ -63,31 +55,27 @@ fn build_ui(application: &gtk::Application) {
 
     let mut static_nodes = Vec::new();
     static_nodes.push(Node::Diffuse(ShadeDiffuse::new(1.0)));
-    let static_material = Material::new(Some(Texture::ImageMap(static_texture)), 0.9, static_nodes);
+    //static_nodes.push(Node::Refract(ShadeRefract::new(0.2, 2.0)));
+    static_nodes.push(Node::Reflect(ShadeReflect::new(0.25)));
+    let static_material = Material::new(Some(Texture::ImageMap(static_texture)), 0.3, static_nodes);
     
     let mut untextured_nodes = Vec::new();
     untextured_nodes.push(Node::Diffuse(ShadeDiffuse::new(1.0)));
     untextured_nodes.push(Node::Reflect(ShadeReflect::new(0.25)));
     let untextured_material = Material::new(None, 0.9, untextured_nodes);
     
-    let mut untextured2_nodes = Vec::new();
-    untextured2_nodes.push(Node::Diffuse(ShadeDiffuse::new(1.0)));
-    untextured2_nodes.push(Node::Reflect(ShadeReflect::new(0.25)));
-    let untextured2_material = Material::new(None, 0.9, untextured2_nodes);
-    
     let mut chrome_nodes = Vec::new();
     chrome_nodes.push(Node::Diffuse(ShadeDiffuse::new(0.15)));
     chrome_nodes.push(Node::Reflect(ShadeReflect::new(1.0)));
-    let chrome_material = Material::new(Some(Texture::Color(Color{red: 71.0, green: 221.0, blue: 255.0})), 0.8, chrome_nodes);
+    let chrome_material = Material::new(Some(Texture::Color(Color::new_from_linear(71, 221, 255))), 0.8, chrome_nodes);
     
     let mut blue_nodes = Vec::new();
     blue_nodes.push(Node::Refract(ShadeRefract::new(1.0, 1.5)));
-    //blue_nodes.push(Node::Diffuse(ShadeDiffuse::new(0.05)));
-    let blue_material = Material::new(Some(Texture::Color(Color{red: 100.0, green: 100.0, blue: 255.0})), 1.0, blue_nodes);
+    let blue_material = Material::new(Some(Texture::Color(Color::new_from_linear(100, 100, 255))), 1.0, blue_nodes);
     
     let mut backdrop_nodes = Vec::new();
     backdrop_nodes.push(Node::Diffuse(ShadeDiffuse::new(1.0)));
-    let backdrop_material = Material::new(Some(Texture::Color(Color{red: 50.0, green: 50.0, blue: 255.0})), 0.5, backdrop_nodes);
+    let backdrop_material = Material::new(Some(Texture::Color(Color::new_from_linear(50, 50, 255))), 0.5, backdrop_nodes);
     
     let mut metal_nodes = Vec::new();
     metal_nodes.push(Node::Diffuse(ShadeDiffuse::new(1.0)));
@@ -95,41 +83,45 @@ fn build_ui(application: &gtk::Application) {
     let metal_material = Material::new(Some(Texture::ImageMap(metal_texture)), 1.0, metal_nodes);
     
     let mut objects : Vec<SceneObject> = Vec::new();
+/*
+    for i in (-20..100).step_by(2) {
+	let red_texture = ImageMap::new_from_file("assets/fire.jpg".to_string(), 5.0);
+	let mut red_nodes = Vec::new();
+	red_nodes.push(Node::Diffuse(ShadeDiffuse::new(1.0)));
+	red_nodes.push(Node::Reflect(ShadeReflect::new(0.25)));
+	let red_material = Material::new(Some(Texture::ImageMap(red_texture)), 0.9, red_nodes);
+	objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 1.0+i as f64, y: 1.0, z: 0.5}, 0.3, red_material)));
+    }
+
+    for i in (-20..100).step_by(2) {
+	let red_texture = ImageMap::new_from_file("assets/fire.jpg".to_string(), 5.0);
+	let mut red_nodes = Vec::new();
+	red_nodes.push(Node::Diffuse(ShadeDiffuse::new(1.0)));
+	red_nodes.push(Node::Reflect(ShadeReflect::new(0.25)));
+	let red_material = Material::new(Some(Texture::ImageMap(red_texture)), 0.9, red_nodes);
+	objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 1.0+i as f64, y: -1.0, z: 0.5}, 0.3, red_material)));
+    }*/
 
     objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 5.0, y:  -0.2, z: 1.3}, 0.3, chrome_material)));
-    objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 0.0, y:  -0.2, z: 1.3}, 0.3, untextured2_material)));
-    objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 5.0, y:  0.0, z: 0.0}, 0.3, static_material)));
+    objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 6.0, y:  -2.0, z: 3.0}, 0.3, static_material)));
     objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 5.0, y: -0.5, z: 0.5}, 0.5, untextured_material)));
     objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 4.5, y:  1.0, z: 1.5}, 1.0, blue_material)));
     objects.push(SceneObject::Plane(Plane::new(Point3{x: 0.0, y: 0.0, z: -0.3}, Vector3{x: 0.0, y: 0.0, z: -1.0}, metal_material)));
-    objects.push(SceneObject::Plane(Plane::new(Point3{x: 30.0, y: 0.0, z: 0.0}, Vector3{x: 1.0, y: 0.0, z: 0.0}, backdrop_material)));
+    objects.push(SceneObject::Plane(Plane::new(Point3{x: 100.0, y: 0.0, z: 0.0}, Vector3{x: 1.0, y: 0.0, z: 0.0}, backdrop_material)));
     
-    let mut lights  : Vec<SceneLight>  = Vec::new();
-    /*
-    lights.push(SceneLight::Sun(Sun::new(Vector3{x: -0.5, y: -3.0, z: -1.0},
-					 Color{red: 255.0, green: 150.0, blue: 150.0},
-					 100.0)));*/
-    lights.push(SceneLight::PointLight(PointLight::new(Point3{x: -10.0, y: 0.0, z: 150.0},
-						       Color{red: 255.0, green: 250.0, blue: 250.0},
+    let mut lights : Vec<SceneLight>  = Vec::new();
+    lights.push(SceneLight::PointLight(PointLight::new(Point3{x: 60.0, y: 0.0, z: 150.0},
+						       Color::new_from_linear(255, 255, 255),
 						       1500000.0)));
     lights.push(SceneLight::PointLight(PointLight::new(Point3{x: -0.5, y: -3.0, z: 15.0},
-						       Color{red: 255.0, green: 250.0, blue: 250.0},
+						       Color::new_from_linear(255, 255, 255),
 						       15000.0)));
     lights.push(SceneLight::PointLight(PointLight::new(Point3{x: 0.0, y: 3.0, z: 15.0},
-						       Color{red: 255.0, green: 250.0, blue: 250.0},
+						       Color::new_from_linear(255, 255, 255),
 						       15000.0)));
-    lights.push(SceneLight::PointLight(PointLight::new(Point3{x: 20.0, y: -4.0, z: 0.5},
-						       Color{red: 255.0, green: 250.0, blue: 250.0},
-						       45.0)));
-    lights.push(SceneLight::PointLight(PointLight::new(Point3{x: 4.0, y: 0.3, z: 0.15},
-						       Color{red: 255.0, green: 150.0, blue: 150.0},
-						       5.0)));
-    lights.push(SceneLight::PointLight(PointLight::new(Point3{x: 4.4, y: -0.35, z: 0.15},
-						       Color{red: 255.0, green: 150.0, blue: 150.0},
-						       5.0)));
-    let mut scene = Scene{camera: Camera{location: Point3{x: 0.0, y: 0.0, z: 0.5},
-					 rotation: Vector3{x: 0.0, y: 0.15, z: 0.0},
-					 focal_length: 0.58,
+    let mut scene = Scene{camera: Camera{location: Point3{x: 0.0, y: 0.0, z: -0.1},
+					 rotation: Vector3{x: 0.0, y: 0.2, z: 0.0},
+					 focal_length: 0.4,
 					 resolution: Resolution{x: WIDTH_RENDER, y: HEIGHT_RENDER},
 					 hx: 0.5,
 					 hy: 0.375},
