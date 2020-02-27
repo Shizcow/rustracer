@@ -23,10 +23,10 @@ use gdk_pixbuf::Pixbuf;
 use cgmath::Vector3;
 use cgmath::Point3;
 
-static WIDTH_RENDER    : usize = 1920;//2880*2;//1920;//640;
-static HEIGHT_RENDER   : usize = 1440;//2160*2;//1440;//480;
-static WIDTH_VIEWPORT  : i32   = 1920;//2880;
-static HEIGHT_VIEWPORT : i32   = 1440;//2160;
+static WIDTH_RENDER    : usize = 2880;//1920;//640;
+static HEIGHT_RENDER   : usize = 2160;//1440;//480;
+static WIDTH_VIEWPORT  : i32   = 2880;
+static HEIGHT_VIEWPORT : i32   = 2160;
 
 fn render_scene(scene: &mut Scene, pvec: &mut Pixvec) {
     let focal_point = scene.camera.get_focal_point();
@@ -55,13 +55,12 @@ fn build_ui(application: &gtk::Application) {
 
     let mut static_nodes = Vec::new();
     static_nodes.push(Node::Diffuse(ShadeDiffuse::new(1.0)));
-    //static_nodes.push(Node::Refract(ShadeRefract::new(0.2, 2.0)));
     static_nodes.push(Node::Reflect(ShadeReflect::new(0.25)));
     let static_material = Material::new(Some(Texture::ImageMap(static_texture)), 0.3, static_nodes);
     
     let mut untextured_nodes = Vec::new();
     untextured_nodes.push(Node::Diffuse(ShadeDiffuse::new(1.0)));
-    untextured_nodes.push(Node::Reflect(ShadeReflect::new(0.25)));
+    untextured_nodes.push(Node::Reflect(ShadeReflect::new(0.1)));
     let untextured_material = Material::new(None, 0.9, untextured_nodes);
     
     let mut chrome_nodes = Vec::new();
@@ -83,12 +82,19 @@ fn build_ui(application: &gtk::Application) {
     let metal_material = Material::new(Some(Texture::ImageMap(metal_texture)), 1.0, metal_nodes);
     
     let mut objects : Vec<SceneObject> = Vec::new();
-/*
+
+    objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 5.0, y:  -0.2, z: 1.3}, 0.3, chrome_material)));
+    objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 6.0, y:  -2.0, z: 3.0}, 0.3, static_material)));
+    objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 5.0, y: -0.5, z: 0.5}, 0.5, untextured_material)));
+    objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 4.5, y:  1.0, z: 1.5}, 1.0, blue_material)));
+    objects.push(SceneObject::Plane(Plane::new(Point3{x: 0.0, y: 0.0, z: -0.3}, Vector3{x: 0.0, y: 0.0, z: -1.0}, metal_material)));
+    objects.push(SceneObject::Plane(Plane::new(Point3{x: 100.0, y: 0.0, z: 0.0}, Vector3{x: 1.0, y: 0.0, z: 0.0}, backdrop_material)));
+    
     for i in (-20..100).step_by(2) {
 	let red_texture = ImageMap::new_from_file("assets/fire.jpg".to_string(), 5.0);
 	let mut red_nodes = Vec::new();
 	red_nodes.push(Node::Diffuse(ShadeDiffuse::new(1.0)));
-	red_nodes.push(Node::Reflect(ShadeReflect::new(0.25)));
+	red_nodes.push(Node::Reflect(ShadeReflect::new(0.05)));
 	let red_material = Material::new(Some(Texture::ImageMap(red_texture)), 0.9, red_nodes);
 	objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 1.0+i as f64, y: 1.0, z: 0.5}, 0.3, red_material)));
     }
@@ -97,17 +103,18 @@ fn build_ui(application: &gtk::Application) {
 	let red_texture = ImageMap::new_from_file("assets/fire.jpg".to_string(), 5.0);
 	let mut red_nodes = Vec::new();
 	red_nodes.push(Node::Diffuse(ShadeDiffuse::new(1.0)));
-	red_nodes.push(Node::Reflect(ShadeReflect::new(0.25)));
+	red_nodes.push(Node::Reflect(ShadeReflect::new(0.05)));
 	let red_material = Material::new(Some(Texture::ImageMap(red_texture)), 0.9, red_nodes);
 	objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 1.0+i as f64, y: -1.0, z: 0.5}, 0.3, red_material)));
-    }*/
-
-    objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 5.0, y:  -0.2, z: 1.3}, 0.3, chrome_material)));
-    objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 6.0, y:  -2.0, z: 3.0}, 0.3, static_material)));
-    objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 5.0, y: -0.5, z: 0.5}, 0.5, untextured_material)));
-    objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 4.5, y:  1.0, z: 1.5}, 1.0, blue_material)));
-    objects.push(SceneObject::Plane(Plane::new(Point3{x: 0.0, y: 0.0, z: -0.3}, Vector3{x: 0.0, y: 0.0, z: -1.0}, metal_material)));
-    objects.push(SceneObject::Plane(Plane::new(Point3{x: 100.0, y: 0.0, z: 0.0}, Vector3{x: 1.0, y: 0.0, z: 0.0}, backdrop_material)));
+    }
+    /*
+	let red_texture = ImageMap::new_from_file("assets/fire.jpg".to_string(), 5.0);
+	let mut red_nodes = Vec::new();
+	red_nodes.push(Node::Diffuse(ShadeDiffuse::new(1.0)));
+	red_nodes.push(Node::Reflect(ShadeReflect::new(0.05)));
+	let red_material = Material::new(Some(Texture::ImageMap(red_texture)), 0.9, red_nodes);
+	objects.push(SceneObject::Sphere(Sphere::new(Point3{x: 3.0 as f64, y: -0.5, z: 0.5}, 0.3, red_material)));
+     */
     
     let mut lights : Vec<SceneLight>  = Vec::new();
     lights.push(SceneLight::PointLight(PointLight::new(Point3{x: 60.0, y: 0.0, z: 150.0},
@@ -132,6 +139,9 @@ fn build_ui(application: &gtk::Application) {
     let mut pvec = Pixvec::new(WIDTH_RENDER, HEIGHT_RENDER);
     render_scene(&mut scene, &mut pvec);
     let mut pbuf = Pixbuf::from(&mut pvec).scale_simple(WIDTH_VIEWPORT, HEIGHT_VIEWPORT, gdk_pixbuf::InterpType::Bilinear).unwrap();
+    if let Err(error) = pbuf.savev("out.png", "png", &[]) {
+	println!("Could not save image! {:?}", error);
+    }
     let image = gtk::Image::new_from_pixbuf(Some(&mut pbuf));
     let event_box = gtk::EventBox::new();
 
