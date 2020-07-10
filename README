@@ -1,1 +1,1 @@
-An in-progress, simple raytracer written in Rust.
+A simple whitted raytracer written in Rust. This project has been finished, and will not continue any further. I think it's about as good as it will get without moving over to scattering and sampling.
